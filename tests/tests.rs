@@ -1,4 +1,4 @@
-use simple_builder::Builder;
+use build_it::Builder;
 
 #[test]
 fn pub_fields() {

@@ -7,7 +7,7 @@
 //!
 //! # Examples
 //! ```
-//! use simple_builder::Builder;
+//! use build_it::Builder;
 //! #[derive(Default, Builder)]
 //! struct MyAwesomeStruct {
 //!     name: Option<String>,
@@ -32,7 +32,7 @@
 //!
 //! The generated builder methods will also display the field's documentation:
 //! ```
-//! use simple_builder::Builder;
+//! use build_it::Builder;
 //! #[derive(Default, Builder)]
 //! struct MyAwesomeStruct {
 //!     /// Name of the person
@@ -77,7 +77,7 @@ type Fields = syn::punctuated::Punctuated<syn::Field, syn::token::Comma>;
 ///
 /// The following struct:
 /// ```
-/// # use simple_builder::Builder;
+/// # use build_it::Builder;
 /// #[derive(Builder)]
 /// struct SimpleStruct {
 ///    name: Option<String>,

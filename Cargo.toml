@@ -1,12 +1,12 @@
 [package]
-name = "simple-builder"
+name = "build-it"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
 description = "A derive-macro for simple builder-pattern generation"
 readme = "README.md"
 authors = ["Ben Püschel"]
-repository = "https://github.com/benpueschel/simple-builder"
+repository = "https://github.com/benpueschel/build-it"
 keywords = ["derive", "macro", "builder", "pattern"]
 categories = ["development-tools"]
 exclude = [".github/"]
