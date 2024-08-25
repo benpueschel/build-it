@@ -2,6 +2,14 @@
 name = "simple-builder"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "A derive-macro for simple builder-pattern generation"
+readme = "README.md"
+authors = ["Ben Püschel"]
+repository = "https://github.com/benpueschel/simple-builder"
+keywords = ["derive", "macro", "builder", "pattern"]
+categories = ["development-tools"]
+exclude = [".github/"]
 
 [lib]
 proc-macro = true

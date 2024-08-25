@@ -1,3 +1,66 @@
+//! This crate provides a derive-macro to generate the builder pattern for a struct.
+//! The builder implementation contains a method for each field of the struct, ignoring fields with
+//! the #[skip] attribute.
+//! Each field to generate a method for must be of type Option<T>. If any field is not of type
+//! Option<T>, and doesn't have the #[skip] attribute, the macro will panic.
+//!
+//!
+//! # Examples
+//! ```
+//! use simple_builder::Builder;
+//! #[derive(Default, Builder)]
+//! struct MyAwesomeStruct {
+//!     name: Option<String>,
+//!     pub age: Option<u32>,
+//!     #[skip]
+//!     address: String,
+//!     #[skip]
+//!     pub phone: Option<String>,
+//! }
+//! let builder = MyAwesomeStruct::default()
+//!     .name("Alice".to_string())
+//!     .age(42);
+//!     // Note that `address` and `phone` do not have builder methods because of the #[skip]
+//!     // attribute.
+//! assert_eq!(builder.name, Some("Alice".to_string()));
+//! assert_eq!(builder.age, Some(42));
+//!
+//! // These fields are skipped, so they're value will still be the default value.
+//! assert_eq!(builder.address, String::default());
+//! assert_eq!(builder.phone, None);
+//!```
+//!
+//! The generated builder methods will also display the field's documentation:
+//! ```
+//! use simple_builder::Builder;
+//! #[derive(Default, Builder)]
+//! struct MyAwesomeStruct {
+//!     /// Name of the person
+//!     name: Option<String>,
+//!     /// Age of the person
+//!     age: Option<u32>,
+//! }
+//! ```
+//! This will generate the following builder methods:
+//! ```
+//! # struct MyAwesomeStruct {
+//! #     name: Option<String>,
+//! #     age: Option<u32>,
+//! # }
+//! impl MyAwesomeStruct {
+//!    /// Name of the person
+//!     pub fn name(mut self, name: String) -> Self {
+//!         self.name = Some(name);
+//!         self
+//!     }
+//!     /// Age of the person
+//!     pub fn age(mut self, age: u32) -> Self {
+//!         self.age = Some(age);
+//!         self
+//!     }
+//! }
+//!
+
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
