@@ -37,3 +37,20 @@ fn skip_fields() {
     assert_eq!(builder.name, String::default());
     assert_eq!(builder.age, Some(30));
 }
+
+#[test]
+fn doc_comments() {
+    #[derive(Default, Builder)]
+    struct DocComments {
+        /// Name of the person
+        /// This is a multiline doc comment
+        /// This is the last line of the multiline doc comment
+        name: Option<String>,
+        /// Age of the person
+        age: Option<u32>,
+    }
+
+    let builder = DocComments::default().name("Alice".to_string()).age(30);
+    assert_eq!(builder.name, Some("Alice".to_string()));
+    assert_eq!(builder.age, Some(30));
+}

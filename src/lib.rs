@@ -181,7 +181,7 @@ fn generate_builder_method(field: &syn::Field) -> proc_macro2::TokenStream {
         "Builder only works on Option<T> fields.
         Consider using #[skip] to skip fields that should not be optional.",
     );
-    let docs = field.attrs.iter().find_map(|attr| {
+    let docs = field.attrs.iter().filter_map(|attr| {
         if attr.path().is_ident("doc") {
             Some(attr.clone())
         } else {
@@ -189,7 +189,7 @@ fn generate_builder_method(field: &syn::Field) -> proc_macro2::TokenStream {
         }
     });
     quote! {
-        #docs
+        #(#docs)*
         pub fn #field_name(mut self, #field_name: #field_ty) -> Self {
             self.#field_name = Some(#field_name);
             self
