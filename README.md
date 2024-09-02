@@ -5,19 +5,25 @@ Easily generate builder patterns in Rust.
 ## Usage
 
 ```rust
-use simple_builder::Builder;
+use build_it::Builder;
 #[derive(Default, Builder)]
-struct MyBuilder {
-    a: i32,
-    pub b: i32,
+struct MyAwesomeStruct {
+    name: Option<String>,
+    pub age: Option<u32>,
     #[skip]
-    c: i32,
+    address: String,
+    #[skip]
+    pub phone: Option<String>,
 }
-let builder = MyBuilder::default()
-    .a(1)
-    .b(2);
-assert_eq!(builder.a, 1);
-assert_eq!(builder.b, 2);
-// c is not settable, so it remains the default value
-assert_eq!(builder.c, 0);
+let builder = MyAwesomeStruct::default()
+    .name("Alice".to_string())
+    .age(42);
+    // Note that `address` and `phone` do not have builder methods because of the #[skip]
+    // attribute.
+assert_eq!(builder.name, Some("Alice".to_string()));
+assert_eq!(builder.age, Some(42));
+
+// These fields are skipped, so they're value will still be the default value.
+assert_eq!(builder.address, String::default());
+assert_eq!(builder.phone, None);
 ```
