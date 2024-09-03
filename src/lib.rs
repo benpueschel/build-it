@@ -63,12 +63,13 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{parse_macro_input, spanned::Spanned, DeriveInput};
 
 type Fields = syn::punctuated::Punctuated<syn::Field, syn::token::Comma>;
 
 #[proc_macro_derive(Builder, attributes(skip))]
 /// Derive the builder pattern for a struct.
+///
 /// The builder implementation contains a method for each field of the struct, ignoring fields with
 /// a #[skip] attribute.
 /// Each field to generate a method for must be of type Option<T>.
@@ -107,12 +108,32 @@ pub fn derive_builder(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree
     let input = parse_macro_input!(input as DeriveInput);
     let data = match input.data {
-        syn::Data::Struct(ref data) => data,
-        _ => panic!("Builder derive only works on structs"),
+        syn::Data::Struct(ref data) => Ok(data),
+        syn::Data::Enum(ref data) => Err(syn::Error::new(
+            data.enum_token.span(),
+            "Builder derive does not work on enums",
+        )),
+        syn::Data::Union(ref data) => Err(syn::Error::new(
+            data.union_token.span(),
+            "Builder derive does not work on unions",
+        )),
     };
+    if let Err(err) = data {
+        return err.to_compile_error().into();
+    }
+    let data = data.expect("data is a struct");
+
     let fields = match data.fields {
         syn::Fields::Named(ref fields) => &fields.named,
-        _ => panic!("Builder derive only works on structs with named fields"),
+        syn::Fields::Unit => return quote! {}.into(),
+        syn::Fields::Unnamed(ref fields) => {
+            return syn::Error::new(
+                fields.span(),
+                "Builder derive only works on structs with named fields",
+            )
+            .to_compile_error()
+            .into();
+        }
     };
 
     generate_builder_impl(&input, fields).into()
@@ -177,10 +198,16 @@ fn generate_builder_method(field: &syn::Field) -> proc_macro2::TokenStream {
     }
 
     let field_name = field.ident.as_ref().unwrap();
-    let field_ty = get_inner_type(&field.ty).expect(
-        "Builder only works on Option<T> fields.
-        Consider using #[skip] to skip fields that should not be optional.",
-    );
+    let field_ty = get_inner_type(&field.ty);
+    if field_ty.is_none() {
+        return syn::Error::new(
+            field.span(),
+            "Builder only works on Option<T> fields. Consider using #[skip] to skip fields that should not be optional.",
+        )
+        .to_compile_error();
+    }
+    let field_ty = field_ty.expect("field type is an Option<T>");
+
     let docs = field.attrs.iter().filter_map(|attr| {
         if attr.path().is_ident("doc") {
             Some(attr.clone())
