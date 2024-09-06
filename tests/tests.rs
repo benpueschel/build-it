@@ -68,6 +68,7 @@ fn skip_fields() {
 
 #[test]
 fn doc_comments() {
+    /// A struct with doc comments
     #[derive(Default, Builder)]
     struct DocComments {
         /// Name of the person

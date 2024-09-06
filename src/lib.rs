@@ -80,7 +80,7 @@
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::{parse_macro_input, spanned::Spanned, DeriveInput};
 
 type Fields = syn::punctuated::Punctuated<syn::Field, syn::token::Comma>;
@@ -279,14 +279,18 @@ struct GlobalAttr {
 
 fn parse_global_attr(input: &DeriveInput) -> GlobalAttr {
     let mut result = GlobalAttr::default();
-    for attr in &input.attrs {
+    let attr = input
+        .attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("build_it"));
+    if let Some(attr) = attr {
         attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("into") {
                 result.into = true;
             }
             Ok(())
         })
-        .expect("Failed to parse build_it attribute");
+        .expect("Failed to parse global build_it attribute");
     }
     result
 }
