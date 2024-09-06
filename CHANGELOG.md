@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4](https://github.com/benpueschel/build-it/compare/v0.1.3...v0.1.4) - 2024-09-06
+
+### Added
+- add `#[build_it(into)]` attribute
+- add new `#[build_it]` attribute
+
+### Other
+- update README
+
 ## [0.1.1](https://github.com/benpueschel/build-it/compare/v0.1.0...v0.1.1) - 2024-08-25
 
 ### Fixed
