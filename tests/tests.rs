@@ -82,3 +82,17 @@ fn doc_comments() {
     assert_eq!(builder.name, Some("Alice".to_string()));
     assert_eq!(builder.age, Some(30));
 }
+
+#[test]
+fn into() {
+    #[derive(Default, Builder)]
+    #[build_it(into)]
+    struct Into {
+        name: Option<String>,
+        age: Option<u32>,
+    }
+
+    let builder = Into::default().name("Alice").age(30u32);
+    assert_eq!(builder.name, Some("Alice".to_string()));
+    assert_eq!(builder.age, Some(30));
+}

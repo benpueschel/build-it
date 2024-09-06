@@ -22,6 +22,13 @@
 //!     #[build_it(rename = "new_name")]
 //!     renamed: Option<String>,
 //!
+//!     /// The `#[build_it(into)]` attribute can be used to allow the builder method to accept
+//!     /// types that can be converted into the field type. In this case, the builder method will
+//!     /// accept a `&str` instead of a `String`:
+//!     /// `let builder = MyAwesomeStruct::default().name_into("Alice");`
+//!     #[build_it(into)]
+//!     name_into: Option<String>,
+//!
 //!     #[build_it(skip)]
 //!     // NOTE: While the `#[skip]` attribute is still supported, it is deprecated in favor of
 //!     // the `#[build_it(skip)]` attribute.
@@ -118,6 +125,7 @@ type Fields = syn::punctuated::Punctuated<syn::Field, syn::token::Comma>;
 pub fn derive_builder(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree
     let input = parse_macro_input!(input as DeriveInput);
+    let global_attr = parse_global_attr(&input);
     let data = match input.data {
         syn::Data::Struct(ref data) => Ok(data),
         syn::Data::Enum(ref data) => Err(syn::Error::new(
@@ -147,7 +155,7 @@ pub fn derive_builder(input: TokenStream) -> TokenStream {
         }
     };
 
-    generate_builder_impl(&input, fields).into()
+    generate_builder_impl(&input, &global_attr, fields).into()
 }
 
 /// Generate the builder implementation for a struct.
@@ -174,10 +182,16 @@ pub fn derive_builder(input: TokenStream) -> TokenStream {
 ///     }
 /// }
 /// ```
-fn generate_builder_impl(input: &DeriveInput, fields: &Fields) -> proc_macro2::TokenStream {
+fn generate_builder_impl(
+    input: &DeriveInput,
+    global_attr: &GlobalAttr,
+    fields: &Fields,
+) -> proc_macro2::TokenStream {
     let name = &input.ident;
     let generics = &input.generics;
-    let methods = fields.iter().map(generate_builder_method);
+    let methods = fields
+        .iter()
+        .map(|f| generate_builder_method(f, global_attr));
     quote! {
         impl #generics #name #generics {
             #(#methods)*
@@ -202,7 +216,10 @@ fn generate_builder_impl(input: &DeriveInput, fields: &Fields) -> proc_macro2::T
 /// }
 /// # }
 /// ```
-fn generate_builder_method(field: &syn::Field) -> proc_macro2::TokenStream {
+fn generate_builder_method(
+    field: &syn::Field,
+    global_attr: &GlobalAttr,
+) -> proc_macro2::TokenStream {
     // Skip fields with a #[skip] attribute
     // NOTE: This is deprecated in favor of the `build_it` attribute
     if field.attrs.iter().any(|attr| attr.path().is_ident("skip")) {
@@ -236,18 +253,48 @@ fn generate_builder_method(field: &syn::Field) -> proc_macro2::TokenStream {
             None
         }
     });
-    quote! {
-        #(#docs)*
-        pub fn #fn_name(mut self, #field_name: #field_ty) -> Self {
-            self.#field_name = Some(#field_name);
-            self
+    if attr.into || global_attr.into {
+        quote! {
+            #(#docs)*
+            pub fn #fn_name(mut self, #field_name: impl core::convert::Into<#field_ty>) -> Self {
+                self.#field_name = Some(#field_name.into());
+                self
+            }
+        }
+    } else {
+        quote! {
+            #(#docs)*
+            pub fn #fn_name(mut self, #field_name: #field_ty) -> Self {
+                self.#field_name = Some(#field_name);
+                self
+            }
         }
     }
 }
 
 #[derive(Default)]
+struct GlobalAttr {
+    into: bool,
+}
+
+fn parse_global_attr(input: &DeriveInput) -> GlobalAttr {
+    let mut result = GlobalAttr::default();
+    for attr in &input.attrs {
+        attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("into") {
+                result.into = true;
+            }
+            Ok(())
+        })
+        .expect("Failed to parse build_it attribute");
+    }
+    result
+}
+
+#[derive(Default)]
 struct Attr {
     skip: bool,
+    into: bool,
     rename: Option<String>,
 }
 
@@ -261,6 +308,8 @@ fn parse_attr(field: &syn::Field) -> Attr {
         attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("skip") {
                 result.skip = true;
+            } else if meta.path.is_ident("into") {
+                result.into = true;
             } else if meta.path.is_ident("rename") {
                 let content = meta.value().expect("Expected a value");
                 let lit: syn::LitStr = content.parse()?;
