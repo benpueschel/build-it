@@ -12,9 +12,19 @@
 //! struct MyAwesomeStruct {
 //!     name: Option<String>,
 //!     pub age: Option<u32>,
-//!     #[skip]
+//!     #[build_it(skip)]
 //!     address: String,
-//!     #[skip]
+//!
+//!     /// The `#[build_it(rename = "new_name")]` attribute can be used to rename the builder
+//!     /// method. In this case, the builder method will be called `new_name` instead of
+//!     /// `renamed`:
+//!     /// `let builder = MyAwesomeStruct::default().new_name("Alice".to_string());`
+//!     #[build_it(rename = "new_name")]
+//!     renamed: Option<String>,
+//!
+//!     #[build_it(skip)]
+//!     // NOTE: While the `#[skip]` attribute is still supported, it is deprecated in favor of
+//!     // the `#[build_it(skip)]` attribute.
 //!     pub phone: Option<String>,
 //! }
 //! let builder = MyAwesomeStruct::default()
@@ -62,12 +72,13 @@
 //!
 
 use proc_macro::TokenStream;
+use proc_macro2::Span;
 use quote::quote;
 use syn::{parse_macro_input, spanned::Spanned, DeriveInput};
 
 type Fields = syn::punctuated::Punctuated<syn::Field, syn::token::Comma>;
 
-#[proc_macro_derive(Builder, attributes(skip))]
+#[proc_macro_derive(Builder, attributes(build_it, skip))]
 /// Derive the builder pattern for a struct.
 ///
 /// The builder implementation contains a method for each field of the struct, ignoring fields with
@@ -83,7 +94,7 @@ type Fields = syn::punctuated::Punctuated<syn::Field, syn::token::Comma>;
 /// struct SimpleStruct {
 ///    name: Option<String>,
 ///    age: Option<u32>,
-///    #[skip]
+///    #[build_it(skip)]
 ///    address: String,
 /// }
 /// ```
@@ -141,7 +152,7 @@ pub fn derive_builder(input: TokenStream) -> TokenStream {
 
 /// Generate the builder implementation for a struct.
 /// The builder implementation contains a method for each field of the struct, ignoring fields with
-/// a #[skip] attribute.
+/// a #[build_it(skip)] attribute.
 ///
 /// # Example
 ///
@@ -193,11 +204,21 @@ fn generate_builder_impl(input: &DeriveInput, fields: &Fields) -> proc_macro2::T
 /// ```
 fn generate_builder_method(field: &syn::Field) -> proc_macro2::TokenStream {
     // Skip fields with a #[skip] attribute
+    // NOTE: This is deprecated in favor of the `build_it` attribute
     if field.attrs.iter().any(|attr| attr.path().is_ident("skip")) {
         return quote! {};
     }
 
+    let attr = parse_attr(field);
+    if attr.skip {
+        return quote! {};
+    }
+
     let field_name = field.ident.as_ref().unwrap();
+    let fn_name = syn::Ident::new(
+        &attr.rename.unwrap_or(field_name.to_string()),
+        Span::call_site(),
+    );
     let field_ty = get_inner_type(&field.ty);
     if field_ty.is_none() {
         return syn::Error::new(
@@ -217,11 +238,39 @@ fn generate_builder_method(field: &syn::Field) -> proc_macro2::TokenStream {
     });
     quote! {
         #(#docs)*
-        pub fn #field_name(mut self, #field_name: #field_ty) -> Self {
+        pub fn #fn_name(mut self, #field_name: #field_ty) -> Self {
             self.#field_name = Some(#field_name);
             self
         }
     }
+}
+
+#[derive(Default)]
+struct Attr {
+    skip: bool,
+    rename: Option<String>,
+}
+
+fn parse_attr(field: &syn::Field) -> Attr {
+    let attr = field
+        .attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("build_it"));
+    let mut result = Attr::default();
+    if let Some(attr) = attr {
+        attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("skip") {
+                result.skip = true;
+            } else if meta.path.is_ident("rename") {
+                let content = meta.value().expect("Expected a value");
+                let lit: syn::LitStr = content.parse()?;
+                result.rename = Some(lit.value());
+            }
+            Ok(())
+        })
+        .expect("Failed to parse build_it attribute");
+    }
+    result
 }
 
 /// Get the inner type of an Option<T> type.

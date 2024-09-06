@@ -25,16 +25,44 @@ fn simple_struct() {
 }
 
 #[test]
+fn lifetimes() {
+    #[derive(Default, Builder)]
+    struct Lifetimes<'a> {
+        name: Option<&'a str>,
+        age: Option<u32>,
+    }
+    let builder = Lifetimes::default().name("Alice").age(30);
+    assert_eq!(builder.name, Some("Alice"));
+    assert_eq!(builder.age, Some(30));
+}
+
+#[test]
+fn rename() {
+    #[derive(Default, Builder)]
+    struct Rename {
+        #[build_it(rename = "new_name")]
+        name: Option<String>,
+        age: Option<u32>,
+    }
+    let builder = Rename::default().new_name("Alice".to_string()).age(30);
+    assert_eq!(builder.name, Some("Alice".to_string()));
+    assert_eq!(builder.age, Some(30));
+}
+
+#[test]
 fn skip_fields() {
     #[derive(Default, Builder)]
     struct SkipFields {
         #[skip]
         name: String,
+        #[build_it(skip)]
+        test: String,
         age: Option<u32>,
     }
 
     let builder = SkipFields::default().age(30);
     assert_eq!(builder.name, String::default());
+    assert_eq!(builder.test, String::default());
     assert_eq!(builder.age, Some(30));
 }
 
